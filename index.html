@@ -1,0 +1,129 @@
+<html>
+<head>
+<script src="/socket.io/socket.io.js"></script>
+<script src="http://code.jquery.com/jquery.min.js"></script>
+<link rel="stylesheet" href="/bootstrap"></style>
+</head>
+<body>
+<div class="container">
+<button type="button" id="join" class="btn btn-primary hidden">Join to game</div>
+
+
+<div class="col-lg-8 col-lg-offset-3" id="playground">
+</div>
+<script type="text/javascript">
+	for (var y = 0; y < 8; y++) {
+		var headerDiv = document.createElement('div');
+		headerDiv.className = "row";
+		for (var x = 0; x < 8; x++) {
+			var div = document.createElement('div');
+			if (y % 2 == 0) {
+				x % 2 === 0 ? div.className = "field bright" : div.className = "field dark";
+			} else {
+				x % 2 != 0 ? div.className = "field bright" : div.className = "field dark";
+			}
+			div.id = y * 8 + x;
+			headerDiv.appendChild(div);
+		}
+		document.getElementById('playground').appendChild(headerDiv);
+	}
+</script>
+<script type="text/javascript">
+	var table = {};
+
+	function gameHandler() {
+		this.color = null;
+		this.turn = false;
+		this.move = {
+			from: null,
+			to: null
+		};
+		this.url = function() {
+			return document.URL.split('/')[4];
+		}
+		this.setColor = function(color) {
+			this.color = color;
+		};
+		this.remove = function(field){
+			$('#'+ field).html("");
+		}
+		this.add = function(value){
+			console.log(value);
+			if (value.isQueen) {
+					$('#' + value.field).html('<div class="circle ' + value.color + '"></div>');
+				} else {
+					$('#' + value.field).html('<div class="circle ' + value.color + '"></div>');
+				}
+		}
+		this.handleClick = function(data) {
+			var test = new RegExp(this.color);
+			test.exec($("#" + data).html()) ? console.log(true) : console.log(false);
+			if (($("#" + data).html().length == 0) && (this.move.length == 0)) {
+				console.log('dupa');
+				return false;
+			}
+			if (this.move.from == null && test.exec($("#" + data).html())) {
+				console.log('ss');
+				this.move.from = data;
+				return true
+			}
+			if (this.move.from !== null) {
+				$("#" + data).html().length == 0 ? this.move.to = data : this.move.from = null;
+			}
+			console.log(this.move);
+			if( this.move.from !== null && this.move.to !== null){
+				this.commitMove(this.move.from, this.move.to);
+				this.move.from = null;
+				this.move.to=null;
+			}
+		}
+		this.getPossibles = function(field) {};
+		this.fillPlayground = function(data) {
+			$.each(data, function(index, value) {
+				if (value.isQueen) {
+					$('#' + value.field).html('<div class="circle ' + value.color + '"></div>');
+				} else {
+					$('#' + value.field).html('<div class="circle ' + value.color + '"></div>');
+				}
+			})
+		}
+		this.commitMove = function(from, to) {
+			socket.emit('commitMove', from, to, function(callback) {
+				console.log(callback);
+			})
+		};
+	}
+
+	var game = new gameHandler();
+	$(".field").click(function() {
+		game.handleClick(this.id);
+	});
+</script>
+<script type="text/javascript">
+	var socket = io();
+	$(document).ready(function(){
+		socket.emit('joinRoom',game.url(), function(playable, fields){
+			playable ? $('#join').removeClass('hidden')	: console.log(false);
+			game.fillPlayground(fields);
+		});
+	});
+	$('#join').click(function(event){
+		$("#join").addClass('hidden');
+		socket.emit('joinGame', function(joined){
+			game.setColor(joined);
+		});
+	});
+	socket.on('user joined', function(msg){
+		console.log('user joined to room '+msg);
+	});
+	socket.on('remove', function(field){
+		game.remove(field);
+	})
+	socket.on('add', function(field){
+		game.add(field);
+	})
+
+</script>
+</div>
+</body>
+</html>
